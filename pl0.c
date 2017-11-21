@@ -128,14 +128,30 @@ void getsym(void)
 			sym = SYM_LEQ;     // <=
 			getch();
 		}
-		else if (ch == '>')
-		{
-			sym = SYM_NEQ;     // <>
-			getch();
-		}
 		else
 		{
 			sym = SYM_LES;     // <
+		}
+	}
+	else if(ch == '='){
+		getch();
+		if(ch == '='){		//==
+			sym = SYM_EQU;
+			getch();
+		}
+		else{
+			printf("Fatal Error: Unknown character.\n");
+			exit(1);
+		}
+	}
+	else if(ch == '!'){
+		getch();
+		if(ch == '='){		//!=
+			sym = SYM_NEQ;
+			getch();
+		}
+		else{		//!
+			sym = SYM_NOT;
 		}
 	}
 	else if(ch == '&'){		//& and &&
@@ -469,6 +485,64 @@ void expression(symset fsys)
 	destroyset(set);
 } // expression
 
+void expression_rel(symset fsys)
+{
+	int relop;
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_LES, SYM_LEQ, SYM_GTR, SYM_GEQ));
+	
+	expression(set);
+	while (sym == SYM_LES || sym == SYM_LEQ || sym == SYM_GTR || sym == SYM_GEQ)
+	{
+		relop = sym;
+		getsym();
+		expression(set);
+		if (relop == SYM_LES)
+		{
+			gen(OPR, 0, OPR_LES);
+		}
+		else if(relop == SYM_LEQ)
+		{
+			gen(OPR, 0, OPR_LEQ);
+		}
+		else if(relop == SYM_GTR){
+			gen(OPR, 0, OPR_GTR);
+		}
+		else{
+			gen(OPR, 0, OPR_GEQ);
+		}
+	} // while
+
+	destroyset(set);
+} // expression_rel
+
+void expression_equ(symset fsys)
+{
+	int equop;
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_EQU, SYM_NEQ));
+	
+	expression_rel(set);
+	while (sym == SYM_EQU || sym == SYM_NEQ)
+	{
+		equop = sym;
+		getsym();
+		expression_equ(set);
+		if (equop == SYM_EQU)
+		{
+			gen(OPR, 0, OPR_EQU);
+		}
+		else
+		{
+			gen(OPR, 0, OPR_NEQ);
+		}
+	} // while
+
+	destroyset(set);
+} // expression_equ
+
 void expression_bit(symset fsys)
 {
 	int bitop;
@@ -476,7 +550,7 @@ void expression_bit(symset fsys)
 
 	set = uniteset(fsys, createset(SYM_AND_B, SYM_XOR_B, SYM_OR_B));
 	
-	expression(set);
+	expression_equ(set);
 	while (sym == SYM_AND_B || sym == SYM_XOR_B || sym == SYM_OR_B)
 	{
 		bitop = sym;
@@ -496,7 +570,7 @@ void expression_bit(symset fsys)
 	} // while
 
 	destroyset(set);
-} // expression
+} // expression_bit
 
 void expression_bool(symset fsys)
 {
@@ -578,7 +652,7 @@ void condition(symset fsys)
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
-			error(20);
+		//	error(20);		这里还没找到原因
 		}
 		else
 		{
@@ -704,6 +778,22 @@ void statement(symset fsys)
 		if (sym == SYM_THEN)
 		{
 			getsym();
+			cx1 = cx;
+			gen(JPC, 0, 0);		//to else or go out
+			set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
+			set = uniteset(set1, fsys);
+			statement(set);
+			cx2 = cx;
+			gen(JMP, 0, 0);		//to code after else
+			getsym();
+			if(sym == SYM_ELSE){
+				getsym();
+				code[cx1].a = cx;		//to clde after else
+				statement(set);
+				destroyset(set1);
+				destroyset(set);
+				code[cx2].a = cx;
+			}
 		}
 		else
 		{
@@ -765,6 +855,10 @@ void statement(symset fsys)
 		statement(fsys);
 		gen(JMP, 0, cx1);
 		code[cx2].a = cx;
+	}
+	else if(sym == SYM_EXIT){
+		gen(EXT, 0, 0);
+		getsym();
 	}
 	test(fsys, phi, 19);
 } // statement
@@ -982,6 +1076,7 @@ void interpret()
 			case OPR_NEQ:
 				top--;
 				stack[top] = stack[top] != stack[top + 1];
+				break;
 			case OPR_LES:
 				top--;
 				stack[top] = stack[top] < stack[top + 1];
@@ -989,6 +1084,7 @@ void interpret()
 			case OPR_GEQ:
 				top--;
 				stack[top] = stack[top] >= stack[top + 1];
+				break;
 			case OPR_GTR:
 				top--;
 				stack[top] = stack[top] > stack[top + 1];
@@ -996,6 +1092,7 @@ void interpret()
 			case OPR_LEQ:
 				top--;
 				stack[top] = stack[top] <= stack[top + 1];
+				break;
 			case OPR_AND:
 				top--;
 				if ((stack[top] != 0) && (stack[top + 1] != 0))
@@ -1035,6 +1132,7 @@ void interpret()
 			case OPR_MOD:
 				top--;
 				stack[top] = stack[top] % stack[top + 1];
+				break;
 			} // switch
 			break;
 		case LOD:
@@ -1064,6 +1162,9 @@ void interpret()
 				pc = i.a;
 			top--;
 			break;
+		case EXT:
+			printf("PL/0 program exit.\n");
+			exit(0);
 		} // switch
 	}
 	while (pc);

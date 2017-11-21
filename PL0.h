@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-#define NRW        11     // number of reserved words
+#define NRW        13     // number of reserved words
 #define TXMAX      500    // length of identifier table
 #define MAXNUMLEN  14     // maximum number of digits in numbers
-#define NSYM       13     // maximum number of symbols in array ssym and csym
+#define NSYM       12     // maximum number of symbols in array ssym and csym
 #define MAXIDLEN   10     // length of identifiers
 
 #define MAXADDRESS 32767  // maximum address
@@ -24,12 +24,12 @@ enum symtype
 	SYM_TIMES,
 	SYM_SLASH,
 	SYM_ODD,
-	SYM_EQU,
-	SYM_NEQ,
-	SYM_LES,
-	SYM_LEQ,
-	SYM_GTR,
-	SYM_GEQ,
+	SYM_EQU,//==
+	SYM_NEQ,//!=
+	SYM_LES,//<
+	SYM_LEQ,//<=
+	SYM_GTR,//>
+	SYM_GEQ,//>=
 	SYM_LPAREN,
 	SYM_RPAREN,
 	SYM_COMMA,
@@ -54,7 +54,9 @@ enum symtype
 	SYM_XOR_B,
 	SYM_MOD,
 	SYM_LBRACKET,
-	SYM_RBRACKET
+	SYM_RBRACKET,
+	SYM_ELSE,
+	SYM_EXIT
 };
 
 enum idtype
@@ -64,7 +66,7 @@ enum idtype
 
 enum opcode
 {
-	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC
+	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, EXT
 };
 
 enum oprcode
@@ -143,31 +145,33 @@ char* word[NRW + 1] =
 {
 	"", /* place holder */
 	"begin", "call", "const", "do", "end","if",
-	"odd", "procedure", "then", "var", "while"
+	"odd", "procedure", "then", "var", "while",
+	"else", "exit"
 };
 
 int wsym[NRW + 1] =
 {
 	SYM_NULL, SYM_BEGIN, SYM_CALL, SYM_CONST, SYM_DO, SYM_END,
-	SYM_IF, SYM_ODD, SYM_PROCEDURE, SYM_THEN, SYM_VAR, SYM_WHILE
+	SYM_IF, SYM_ODD, SYM_PROCEDURE, SYM_THEN, SYM_VAR, SYM_WHILE,
+	SYM_ELSE, SYM_EXIT
 };
 
 int ssym[NSYM + 1] =
 {
 	SYM_NULL, SYM_PLUS, SYM_MINUS, SYM_TIMES, SYM_SLASH,
 	SYM_LPAREN, SYM_RPAREN, SYM_EQU, SYM_COMMA, SYM_PERIOD, SYM_SEMICOLON,
-	SYM_NOT, SYM_LBRACKET, SYM_RBRACKET
+	SYM_LBRACKET, SYM_RBRACKET
 };
 
 char csym[NSYM + 1] =
 {
-	' ', '+', '-', '*', '/', '(', ')', '=', ',', '.', ';', '!', '[', ']'
+	' ', '+', '-', '*', '/', '(', ')', '=', ',', '.', ';', '[', ']'
 };
 
-#define MAXINS   8
+#define MAXINS   9
 char* mnemonic[MAXINS] =
 {
-	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC"
+	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC", "EXT"
 };
 
 typedef struct

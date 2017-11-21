@@ -1,0 +1,7 @@
+var i,j,k;
+begin
+/*test 1*2=2*/
+  i := 16;
+  if i / 4 > 3 then exit;
+  else j := 0;
+end.
