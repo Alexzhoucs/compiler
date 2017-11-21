@@ -652,7 +652,10 @@ void condition(symset fsys)
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
-		//	error(20);		这里还没找到原因
+			if (sym != SYM_THEN)
+			{
+				error(20);
+			}
 		}
 		else
 		{
