@@ -27,8 +27,6 @@ void error(int n)
 
 //////////////////////////////////////////////////////////////////////
 
-char SYM_NEWLINE;
-
 void getch(void)
 {
 	if (cc == ll)
@@ -50,8 +48,6 @@ void getch(void)
 		line[++ll] = ' ';
 	}
 	ch = line[++cc];
-	if(cc == ll)	SYM_NEWLINE = 1;
-	else SYM_NEWLINE = 0;
 } // getch
 
 //////////////////////////////////////////////////////////////////////
@@ -142,25 +138,54 @@ void getsym(void)
 			sym = SYM_LES;     // <
 		}
 	}
+	else if(ch == '&'){		//& and &&
+		getch();
+		if(ch == '&'){
+			sym = SYM_AND;
+			getch();
+		}
+		else{
+			sym = SYM_AND_B;
+			getch();
+		}
+	}
+	else if(ch == '|'){		//| and ||
+		getch();
+		if(ch == '|'){
+			sym = SYM_OR;
+			getch();
+		}
+		else{
+			sym = SYM_OR_B;
+			getch();
+		}
+	}
+	else if(ch == '^'){		//^
+		sym = SYM_XOR_B;
+		getch();
+	}
+	else if(ch == '%'){		//%
+		sym = SYM_MOD;
+		getch();
+	}
 	else if(ch == '/'){		// annotation
 		getch();
 		if(ch == '/'){
-			getch();
-			while(SYM_NEWLINE != 1){
+			while(ll - cc){
 				getch();
 			}
-			SYM_NEWLINE = 0;
 			getsym();
 		}
 		else if(ch == '*'){
+			int starflag = 1;
 			getch();
-			while(1){
-				getch();
-				ifstar: 
-				if(ch == '*'){
+			while(starflag){
+				while(ch != '*'){
 					getch();
-					if(ch == '/')	break;
-					else if(ch == '*')	goto ifstar;
+				}
+				getch();
+				if(ch == '/'){
+					starflag = 0;
 				}
 			}
 			getch();
@@ -395,9 +420,9 @@ void term(symset fsys)
 	int mulop;
 	symset set;
 	
-	set = uniteset(fsys, createset(SYM_TIMES, SYM_SLASH, SYM_NULL));
+	set = uniteset(fsys, createset(SYM_TIMES, SYM_SLASH, SYM_MOD, SYM_NULL));
 	factor(set);
-	while (sym == SYM_TIMES || sym == SYM_SLASH)
+	while (sym == SYM_TIMES || sym == SYM_SLASH || sym == SYM_MOD)
 	{
 		mulop = sym;
 		getsym();
@@ -406,9 +431,12 @@ void term(symset fsys)
 		{
 			gen(OPR, 0, OPR_MUL);
 		}
-		else
+		else if(mulop == SYM_SLASH)
 		{
 			gen(OPR, 0, OPR_DIV);
+		}
+		else{
+			gen(OPR, 0, OPR_MOD);
 		}
 	} // while
 	destroyset(set);
@@ -441,22 +469,112 @@ void expression(symset fsys)
 	destroyset(set);
 } // expression
 
+void expression_bit(symset fsys)
+{
+	int bitop;
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_AND_B, SYM_XOR_B, SYM_OR_B));
+	
+	expression(set);
+	while (sym == SYM_AND_B || sym == SYM_XOR_B || sym == SYM_OR_B)
+	{
+		bitop = sym;
+		getsym();
+		expression_bit(set);
+		if (bitop == SYM_AND_B)
+		{
+			gen(OPR, 0, OPR_AND_B);
+		}
+		else if (bitop == SYM_XOR_B)
+		{
+			gen(OPR, 0, OPR_XOR_B);
+		}
+		else{
+			gen(OPR, 0, OPR_OR_B);
+		}
+	} // while
+
+	destroyset(set);
+} // expression
+
+void expression_bool(symset fsys)
+{
+	int boolop;
+	int ci, cj;
+	symset set;
+	set = uniteset(fsys, createset(SYM_NOT, SYM_AND, SYM_OR));/*创建一个!，&&，||的符号集*/
+	//基于优先级的关系，先判断 !
+	if (sym == SYM_NOT)
+	{
+		getsym();
+		expression_bit(set);//调用函数
+		gen(OPR, 0, OPR_NOT);//产生not指令
+	}
+	else
+	{
+		expression_bit(set);//调用expression()函数
+	}
+
+	while (sym == SYM_AND || sym == SYM_OR)
+	{
+
+		gen(LIT, 0, 0);   //栈顶元素元素初始化为0
+						  ////////////////////////短路跳转///////////////////////////////////
+		if (sym == SYM_AND)
+			gen(OPR, 0, OPR_EQU);//   =，如果是and运算，并且与0相等，则删除这两个0，并将1压进栈
+		else//sym=SYM_OR
+			gen(OPR, 0, OPR_GTR);//  >，如果是or运算，并且1大于0，则删除0和1，并将1压进栈
+		cj = cx;//保存当前为第几条指令
+		gen(JPC, 0, 0);//栈顶元素为0，跳转；1的话，不跳转
+					   /////////////////////恢复栈顶元素//////////////////////////////
+		if (sym == SYM_AND)
+			gen(LIT, 0, 0);
+		else
+			gen(LIT, 0, 1);
+		gen(LIT, 0, 0);
+		ci = cx;//保存当前为第几条指令
+		gen(JPC, 0, 0);
+		code[cj].a = cx;
+		/**/
+		if (sym == SYM_AND)
+			gen(LIT, 0, 1);
+		else
+			gen(LIT, 0, 0);
+
+		boolop = sym;
+		getsym();//
+		expression_bool(set);     //优先级
+		if (boolop == SYM_AND)
+		{
+			gen(OPR, 0, OPR_AND);
+		}
+		else
+		{
+			gen(OPR, 0, OPR_OR);
+		}
+		code[ci].a = cx;//确定跳转的位置
+	} // while
+	destroyset(set);
+}
+
 //////////////////////////////////////////////////////////////////////
 void condition(symset fsys)
 {
 	int relop;
 	symset set;
 
+	int ci = 0, cj = 0;
 	if (sym == SYM_ODD)
 	{
 		getsym();
-		expression(fsys);
+		expression_bool(fsys);
 		gen(OPR, 0, 6);
 	}
 	else
 	{
 		set = uniteset(relset, fsys);
-		expression(set);
+		expression_bool(set);
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
@@ -466,9 +584,12 @@ void condition(symset fsys)
 		{
 			relop = sym;
 			getsym();
-			expression(fsys);
+			expression_bool(fsys);
 			switch (relop)
 			{
+			case SYM_NOT:
+				gen(OPR, 0, OPR_NOT);
+				break;
 			case SYM_EQU:
 				gen(OPR, 0, OPR_EQU);
 				break;
@@ -486,6 +607,26 @@ void condition(symset fsys)
 				break;
 			case SYM_LEQ:
 				gen(OPR, 0, OPR_LEQ);
+				break;
+			case SYM_AND:
+				gen(OPR, 0, OPR_AND);
+				code[ci].a = cx;
+				break;
+			case SYM_OR:
+				gen(OPR, 0, OPR_OR);
+				code[ci].a = cx;
+				break;
+			case SYM_AND_B:
+				gen(OPR, 0, OPR_AND_B);
+				code[ci].a = cx;
+				break;
+			case SYM_OR_B:
+				gen(OPR, 0, OPR_OR_B);
+				code[ci].a = cx;
+				break;
+			case SYM_XOR_B:
+				gen(OPR, 0, OPR_XOR_B);
+				code[ci].a = cx;
 				break;
 			} // switch
 		} // else
@@ -519,7 +660,7 @@ void statement(symset fsys)
 		{
 			error(13); // ':=' expected.
 		}
-		expression(fsys);
+		expression_bool(fsys);
 		mk = (mask*) &table[i];
 		if (i)
 		{
@@ -855,6 +996,45 @@ void interpret()
 			case OPR_LEQ:
 				top--;
 				stack[top] = stack[top] <= stack[top + 1];
+			case OPR_AND:
+				top--;
+				if ((stack[top] != 0) && (stack[top + 1] != 0))
+				{
+					stack[top] = 1;
+				}
+				else
+					stack[top] = 0;
+				break;
+			case OPR_OR:
+				top--;
+				if ((stack[top] != 0) || (stack[top + 1] != 0))
+				{
+					stack[top] = 1;
+				}
+				else
+					stack[top] = 0;
+				break;
+			case OPR_NOT:
+				if (stack[top] == 0)
+					stack[top] = 1;
+				else
+					stack[top] = 0;
+				break;
+			case OPR_AND_B:
+				top--;
+				stack[top] = stack[top] & stack[top + 1];
+				break;
+			case OPR_OR_B:
+				top--;
+				stack[top] = stack[top] | stack[top + 1];
+				break;
+			case OPR_XOR_B:
+				top--;
+				stack[top] = stack[top] ^ stack[top + 1];
+				break;
+			case OPR_MOD:
+				top--;
+				stack[top] = stack[top] % stack[top + 1];
 			} // switch
 			break;
 		case LOD:
