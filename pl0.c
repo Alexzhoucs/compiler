@@ -771,40 +771,42 @@ void statement(symset fsys)
         else if (sym == SYM_IF)
 	{ // if statement
 		getsym();
-		set1 = createset(SYM_THEN, SYM_DO, SYM_NULL);
+                set1 = createset(SYM_THEN, SYM_NULL);
 		set = uniteset(set1, fsys);
 		condition(set);
 		destroyset(set1);
 		destroyset(set);
                 if (sym == SYM_THEN)
-                {
                         getsym();
+                        else error(16);
                         cx1 = cx;
                         gen(JPC, 0, 0);		//to else or go out
-                        set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
-                        set = uniteset(set1, fsys);
-                        statement(set);
-                        cx2 = cx;
-                        gen(JMP, 0, 0);		//to code after else
-                        getsym();
+                        statement(uniteset(fsys, createset(SYM_ELSE, SYM_ELIF,SYM_NULL)));
                         if(sym == SYM_ELSE){
-                                getsym();
-                                code[cx1].a = cx;
-                                statement(set);
-                                destroyset(set1);
-                                destroyset(set);
-                                code[cx2].a = cx;
+                            cx2 = cx; //??????????
+                            gen(JMP, 0, 0); //?????????????????????????0
+                            getsym();
+                            code[cx1].a = cx; //????????????????????????else?????????
+                            statement(fsys); //???else??????
+                            code[cx2].a = cx; //?????????????????????then??????????else????
+                            } else { //???û??else
+                            code[cx1].a = cx; //???????????????????????????then????????
+                            }
+                        if(sym == SYM_ELIF)
+                        {
+                            getsym();
+                            set1 = createset(SYM_THEN, SYM_NULL);
+                            set = uniteset(set1, fsys);
+                            condition(set);
+                            destroyset(set1);
+                            destroyset(set);
+                            if (sym == SYM_THEN)
+                                    getsym();
+                                    else error(16);
+                                    cx1 = cx;
+                                    gen(JPC, 0, 0);		//to else or go out
+                                    statement(uniteset(fsys, createset(SYM_ELSE, SYM_NULL)));
                         }
-
-                }
-                else
-		{
-                        error(16); // 'then' expected.
-		}
-		cx1 = cx;
-		gen(JPC, 0, 0);
-		statement(fsys);
-		code[cx1].a = cx;	
 	}
 
 

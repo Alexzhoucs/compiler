@@ -1,0 +1,7 @@
+var i,j;
+begin
+  i := 2;
+  if i > 3 then
+    j := 2
+  elif i>1 then j := 1;
+end.
