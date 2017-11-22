@@ -652,10 +652,8 @@ void condition(symset fsys)
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
-			if (sym != SYM_THEN)
-			{
-				error(20);
-			}
+                        if(sym != SYM_THEN)
+                        error(20);
 		}
 		else
 		{
@@ -770,7 +768,7 @@ void statement(symset fsys)
 			getsym();
 		}
 	} 
-	else if (sym == SYM_IF)
+        else if (sym == SYM_IF)
 	{ // if statement
 		getsym();
 		set1 = createset(SYM_THEN, SYM_DO, SYM_NULL);
@@ -778,35 +776,38 @@ void statement(symset fsys)
 		condition(set);
 		destroyset(set1);
 		destroyset(set);
-		if (sym == SYM_THEN)
+                if (sym == SYM_THEN)
+                {
+                        getsym();
+                        cx1 = cx;
+                        gen(JPC, 0, 0);		//to else or go out
+                        set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
+                        set = uniteset(set1, fsys);
+                        statement(set);
+                        cx2 = cx;
+                        gen(JMP, 0, 0);		//to code after else
+                        getsym();
+                        if(sym == SYM_ELSE){
+                                getsym();
+                                code[cx1].a = cx;
+                                statement(set);
+                                destroyset(set1);
+                                destroyset(set);
+                                code[cx2].a = cx;
+                        }
+
+                }
+                else
 		{
-			getsym();
-			cx1 = cx;
-			gen(JPC, 0, 0);		//to else or go out
-			set1 = createset(SYM_SEMICOLON, SYM_END, SYM_NULL);
-			set = uniteset(set1, fsys);
-			statement(set);
-			cx2 = cx;
-			gen(JMP, 0, 0);		//to code after else
-			getsym();
-			if(sym == SYM_ELSE){
-				getsym();
-				code[cx1].a = cx;		//to clde after else
-				statement(set);
-				destroyset(set1);
-				destroyset(set);
-				code[cx2].a = cx;
-			}
-		}
-		else
-		{
-			error(16); // 'then' expected.
+                        error(16); // 'then' expected.
 		}
 		cx1 = cx;
 		gen(JPC, 0, 0);
 		statement(fsys);
 		code[cx1].a = cx;	
 	}
+
+
 	else if (sym == SYM_BEGIN)
 	{ // block
 		getsym();
@@ -863,6 +864,124 @@ void statement(symset fsys)
 		gen(EXT, 0, 0);
 		getsym();
 	}
+        else if (sym == SYM_FOR) //?????for???
+                        {
+                getsym();
+                mask* mk;
+                if (sym != SYM_IDENTIFIER)
+                        error(4); //for???????????
+                i = position(id);
+                mk = (mask*) &table[i];
+                if (i == 0)
+                        error(11);
+                else if (table[i].kind != ID_VARIABLE) //ASSIGNMENT TO NON-VARIABLE
+                        error(12); //????
+                getsym();
+                if (sym != SYM_BECOMES) //:=
+                        error(13);
+                getsym();
+                set1 = createset(SYM_DOWNTO, SYM_DO, SYM_TO, SYM_NULL);
+                set = uniteset(fsys, set1);
+                expression(set); //????????????????E1
+                destroyset(set1);
+                destroyset(set);
+                if (sym == SYM_DOWNTO) {
+                        getsym();
+                        cx1 = cx; //??????????,????????
+                        gen(STO, level - mk->level, mk->address); //???????????????
+                        gen(LOD, level - mk->level, mk->address); //????????????????
+                        set1 = createset(SYM_DO, SYM_NULL);
+                        set = uniteset(fsys, set1);
+                        expression(set); //???????E2
+                        destroyset(set1);
+                        destroyset(set);
+                        //????????????????????for i:=E1 to E2 do S??????i??????E2?????????????????????????????????
+                        gen(OPR, 0, OPR_GEQ); //?????????????
+                        cx2 = cx; //?????????????????????
+                        gen(JPC, 0, 0); //???????????????????????????????
+                        if (sym == SYM_DO) { //?????
+                                getsym();
+                                cxb cxbsaved = cxbreak; //cy
+                                cxbreak.flag = 0; //cy
+                                cxbreak.sign = 1; //cy
+                                cxbreak.then = NULL;
+                                ; //cy
+
+                                set1 = createset(SYM_SEMICOLON, SYM_NULL);
+                                set = uniteset(set1, fsys);
+                                statement(set);
+                                destroyset(set1);
+                                destroyset(set);
+                                gen(LOD, level - mk->level, mk->address); //????????????????
+                                gen(LIT, 0, STEP); //??????????
+                                gen(OPR, 0, OPR_MIN); //??????
+                                gen(JMP, 0, cx1); //???????????????????
+                                code[cx2].a = cx; //?????????????????????????????????????
+                                if (cxbreak.flag) { //cy
+                                        cxbrklink p = cxbreak.then;
+                                        while (p) {
+                                                code[p->cxbrk].a = cx;
+                                                cxbrklink q = p;
+                                                free(p);
+                                                p = q->next;
+                                        }
+
+                                }
+                                cxbreak.flag = cxbsaved.flag; //cy
+                                cxbreak.then = cxbsaved.then; //cy
+                                cxbreak.sign = cxbsaved.sign; //cy
+
+                        } else
+                                error(18); //do expected
+                } else if (sym == SYM_TO) {
+                        getsym();
+                        cxb cxbsaved = cxbreak; //cy
+                        cxbreak.flag = 0; //cy
+                        cxbreak.sign = 1; //cy
+                        cxbreak.then = NULL;
+                        ; //cy
+                        cx1 = cx; //????????
+                        gen(STO, level - mk->level, mk->address); //???????????????
+                        gen(LOD, level - mk->level, mk->address); //????????????????????????
+                        set1 = createset(SYM_DO, SYM_NULL);
+                        set = uniteset(fsys, set1);
+                        expression(set); //????????E2,????????
+                        destroyset(set1);
+                        destroyset(set);
+                        gen(OPR, 0, OPR_LEQ); //???????   <=  ???????????
+                        cx2 = cx; //????????
+                        gen(JPC, 0, 0); //??????????????????????????????????????????
+                        if (sym == SYM_DO) {
+                                getsym();
+                                set1 = createset(SYM_SEMICOLON, SYM_NULL);
+                                set = uniteset(set1, fsys);
+                                statement(set); //?????????
+                                destroyset(set1);
+                                destroyset(set);
+                                gen(LOD, level - mk->level, mk->address); //??????????????????
+                                gen(LIT, 0, STEP);
+                                gen(OPR, 0, OPR_ADD); //??????
+                                gen(JMP, 0, cx1); //???????????????????
+                                code[cx2].a = cx; //????????????????????????????????
+                                if (cxbreak.flag) { //cy
+                                        cxbrklink p = cxbreak.then;
+                                        while (p) {
+                                                code[p->cxbrk].a = cx;
+                                                cxbrklink q = p;
+                                                free(p);
+                                                p = q->next;
+                                        }
+
+                                }
+                                cxbreak.flag = cxbsaved.flag; //cy
+                                cxbreak.then = cxbsaved.then; //cy
+                                cxbreak.sign = cxbsaved.sign; //cy
+
+                        } else
+                                error(18); //do expected
+                } else
+                        error(30); //to or downto expected
+}
 	test(fsys, phi, 19);
 } // statement
 			
