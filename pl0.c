@@ -572,63 +572,56 @@ void expression_bit(symset fsys)
 	destroyset(set);
 } // expression_bit
 
-void expression_bool(symset fsys)
+void expression_logic(symset fsys)
 {
-	int boolop;
-	int ci, cj;
+	int logicop;
+	int c1, c2;
 	symset set;
-	set = uniteset(fsys, createset(SYM_NOT, SYM_AND, SYM_OR));/*´´½¨Ò»¸ö!£¬&&£¬||µÄ·ûºÅ¼¯*/
-	//»ùÓÚÓÅÏÈ¼¶µÄ¹ØÏµ£¬ÏÈÅÐ¶Ï !
-	if (sym == SYM_NOT)
-	{
+	set = uniteset(fsys, createset(SYM_NOT, SYM_AND, SYM_OR));		//! has higher priority
+	if(sym == SYM_NOT){
 		getsym();
-		expression_bit(set);//µ÷ÓÃº¯Êý
-		gen(OPR, 0, OPR_NOT);//²úÉúnotÖ¸Áî
+		expression_bit(set);
+		gen(OPR, 0, OPR_NOT);
 	}
-	else
-	{
-		expression_bit(set);//µ÷ÓÃexpression()º¯Êý
+	else{
+		expression_bit(set);
 	}
 
-	while (sym == SYM_AND || sym == SYM_OR)
-	{
+	while(sym == SYM_AND || sym == SYM_OR){
 
-		gen(LIT, 0, 0);   //Õ»¶¥ÔªËØÔªËØ³õÊ¼»¯Îª0
-						  ////////////////////////¶ÌÂ·Ìø×ª///////////////////////////////////
-		if (sym == SYM_AND)
-			gen(OPR, 0, OPR_EQU);//   =£¬Èç¹ûÊÇandÔËËã£¬²¢ÇÒÓë0ÏàµÈ£¬ÔòÉ¾³ýÕâÁ½¸ö0£¬²¢½«1Ñ¹½øÕ»
-		else//sym=SYM_OR
-			gen(OPR, 0, OPR_GTR);//  >£¬Èç¹ûÊÇorÔËËã£¬²¢ÇÒ1´óÓÚ0£¬ÔòÉ¾³ý0ºÍ1£¬²¢½«1Ñ¹½øÕ»
-		cj = cx;//±£´æµ±Ç°ÎªµÚ¼¸ÌõÖ¸Áî
-		gen(JPC, 0, 0);//Õ»¶¥ÔªËØÎª0£¬Ìø×ª£»1µÄ»°£¬²»Ìø×ª
-					   /////////////////////»Ö¸´Õ»¶¥ÔªËØ//////////////////////////////
+		gen(LIT, 0, 0);		//initialize the stack top as 0
+		/*jump*/
+		if(sym == SYM_AND)
+			gen(OPR, 0, OPR_EQU);		//==ï¼Œif it's an and, equals to 0
+		else		//SYM_OR
+			gen(OPR, 0, OPR_NEQ);		//!=ï¼Œif it's an or, and 1 != 0
+		c1 = cx;		//save next instruction number
+		gen(JPC, 0, 0);		//if stack top is 0 then jump, else if it's 1, not jump
+		/*regain stack top elements*/
 		if (sym == SYM_AND)
 			gen(LIT, 0, 0);
 		else
 			gen(LIT, 0, 1);
-		gen(LIT, 0, 0);
-		ci = cx;//±£´æµ±Ç°ÎªµÚ¼¸ÌõÖ¸Áî
-		gen(JPC, 0, 0);
-		code[cj].a = cx;
-		/**/
+		c2 = cx;		//save next instruction number
+		gen(JMP, 0, 0);
+		
+		code[c1].a = cx;
 		if (sym == SYM_AND)
 			gen(LIT, 0, 1);
 		else
 			gen(LIT, 0, 0);
 
-		boolop = sym;
-		getsym();//
-		expression_bool(set);     //ÓÅÏÈ¼¶
-		if (boolop == SYM_AND)
-		{
+		logicop = sym;
+		getsym();
+		expression_bit(set);		//for priority
+		if(logicop == SYM_AND){
 			gen(OPR, 0, OPR_AND);
 		}
-		else
-		{
+		else{
 			gen(OPR, 0, OPR_OR);
 		}
-		code[ci].a = cx;//È·¶¨Ìø×ªµÄÎ»ÖÃ
-	} // while
+		code[c2].a = cx;		//fill the destiny to jump
+	}
 	destroyset(set);
 }
 
@@ -642,13 +635,13 @@ void condition(symset fsys)
 	if (sym == SYM_ODD)
 	{
 		getsym();
-		expression_bool(fsys);
+		expression_logic(fsys);
 		gen(OPR, 0, 6);
 	}
 	else
 	{
 		set = uniteset(relset, fsys);
-		expression_bool(set);
+		expression_logic(set);
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
@@ -659,7 +652,7 @@ void condition(symset fsys)
 		{
 			relop = sym;
 			getsym();
-			expression_bool(fsys);
+			expression_logic(fsys);
 			switch (relop)
 			{
 			case SYM_NOT:
@@ -735,7 +728,7 @@ void statement(symset fsys)
 		{
 			error(13); // ':=' expected.
 		}
-		expression_bool(fsys);
+		expression_logic(fsys);
 		mk = (mask*) &table[i];
 		if (i)
 		{
@@ -789,7 +782,7 @@ void statement(symset fsys)
                             code[cx1].a = cx; //????????????????????????else?????????
                             statement(fsys); //???else??????
                             code[cx2].a = cx; //?????????????????????then??????????else????
-                            } else { //???û??else
+                            } else { //???ï¿½??else
                             code[cx1].a = cx; //???????????????????????????then????????
                             }
                         if(sym == SYM_ELIF)
