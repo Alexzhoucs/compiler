@@ -1,12 +1,12 @@
 #include <stdio.h>
-
+#include "evl.c"
 #define STEP 1
 #define NRW        17     // number of reserved words
 #define TXMAX      500    // length of identifier table
 #define MAXNUMLEN  14     // maximum number of digits in numbers
-#define NSYM       12     // maximum number of symbols in array ssym and csym
+#define NSYM       14     // maximum number of symbols in array ssym and csym
 #define MAXIDLEN   10     // length of identifiers
-
+#define MAXDIMLEN 100
 #define MAXADDRESS 32767  // maximum address
 #define MAXLEVEL   32     // maximum depth of nesting block
 #define CXMAX      500    // size of code array
@@ -61,17 +61,19 @@ enum symtype
         SYM_EXIT,
         SYM_FOR,
         SYM_TO,
-        SYM_DOWNTO
+        SYM_DOWNTO,
+        SYM_LSQUARE,
+        SYM_RSQUARE
 };
 
 enum idtype
 {
-	ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE
+        ID_CONSTANT, ID_VARIABLE, ID_PROCEDURE, ID_ARRAY
 };
 
 enum opcode
 {
-	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, EXT
+        LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, EXT,STA,LAD
 };
 
 enum oprcode
@@ -120,9 +122,9 @@ char* err_msg[] =
 /* 23 */    "The symbol can not be followed by a factor.",
 /* 24 */    "The symbol can not be as the beginning of an expression.",
 /* 25 */    "The number is too great.",
-/* 26 */    "",
+/* 26 */    "Dimension of the array is not correct.",
 /* 27 */    "",
-/* 28 */    "",
+/* 28 */    "'[' expected.",
 /* 29 */    "",
 /* 30 */    "'to' or 'downto' expected.",
 /* 31 */    "",
@@ -141,8 +143,11 @@ int  err;
 int  cx;         // index of current instruction to be generated.
 int  level = 0;
 int  tx = 0;
-
+int tx_[100]; //每递归调用一次block开始时table的tx位置
+int dim = 0;
+int array_size = 1;
 char line[80];
+int latit[MAXDIMLEN];
 instruction code[CXMAX];
 
 char* word[NRW + 1] =
@@ -164,7 +169,7 @@ int ssym[NSYM + 1] =
 {
 	SYM_NULL, SYM_PLUS, SYM_MINUS, SYM_TIMES, SYM_SLASH,
 	SYM_LPAREN, SYM_RPAREN, SYM_EQU, SYM_COMMA, SYM_PERIOD, SYM_SEMICOLON,
-	SYM_LBRACKET, SYM_RBRACKET
+        SYM_LBRACKET, SYM_RBRACKET,SYM_LSQUARE,SYM_RSQUARE
 };
 
 char csym[NSYM + 1] =
@@ -172,19 +177,34 @@ char csym[NSYM + 1] =
 	' ', '+', '-', '*', '/', '(', ')', '=', ',', '.', ';', '[', ']'
 };
 
-#define MAXINS   9
+#define MAXINS   11
 char* mnemonic[MAXINS] =
 {
-	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC", "EXT"
+        "LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC", "EXT","STA","LAD"
 };
-
-typedef struct
+typedef struct dim {
+        int dim_len;
+        struct dim* next;
+} p_dim;
+/*typedef struct enode
 {
-	char name[MAXIDLEN + 1];
-	int  kind;
-	int  value;
+        int elem;
+        int cnt;
+        int lpl;
+        struct enode* next;
+} enode,*evl;*/
+typedef struct {
+        char name[MAXIDLEN + 1];
+        int kind;
+        int value;
+        int numOfPar;
+        int quote; //是否引用过;0未引用;1引用过
+        p_dim* next;
+        evl evl;
+        int cnt;
+        int lpl;//loop_level
+        int blkNum;
 } comtab;
-
 comtab table[TXMAX];
 
 typedef struct
@@ -212,6 +232,23 @@ typedef struct { //cy
         int sign;
         cxbrklink then;
 } cxb; //存放break代码地址
+
+
+typedef struct {
+        char name[MAXIDLEN + 1];
+        short kind;
+        short dim_n;
+        short level;
+        short address;
+        int numOfPar;
+        int quote; //是否引用过;0未引用;1引用过
+        p_dim* next;
+        evl evl;
+        int cnt;
+        int lpl;//loop_level
+        int blkNum;
+} array;
+
 
 cxb cxbreak;
 FILE* infile;
