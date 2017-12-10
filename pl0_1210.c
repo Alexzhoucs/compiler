@@ -831,6 +831,29 @@ void expression_select(symset fsys)
 	destroyset(set);
 } // expression_select
 
+void expression_assign(symset fsys)
+{
+	int c1, c2;
+	int i=position(id);
+	mask* mk;
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_BECOMES));
+	
+	expression_select(set);
+	while (sym == SYM_BECOMES)
+	{		
+		getsym();
+		expression_assign(set);
+		mk = (mask*) &table[i];
+		gen(STO, level - mk->level, mk->address);
+		mk = (mask*) &table[i];
+		gen(LOD, level - mk->level, mk->address);
+	} // while
+
+	destroyset(set);
+} // expression_assign
+
 //////////////////////////////////////////////////////////////////////
 void condition(symset fsys)
 {
@@ -993,9 +1016,10 @@ void statement(symset fsys)
             if ((table[i].kind == ID_VARIABLE)){
             	if (sym == SYM_BECOMES){
 					getsym();
-					expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					//expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					expression_assign(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
 	            	mk = (mask*) &table[i];
-	        		gen(STO, level - mk->level, mk->address); 
+	        		gen(STO, level - mk->level, mk->address);
 				}
 				else if(sym == SYM_ADDEQU){
 		        	getsym();
