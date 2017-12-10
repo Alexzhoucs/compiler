@@ -104,7 +104,7 @@ void getsym(void)
 		}
 		else
 		{
-			sym = SYM_NULL;       // illegal?
+			sym = SYM_COLON;       // illegal?
 		}
 	}
 	else if (ch == '>')
@@ -208,6 +208,10 @@ void getsym(void)
 			sym = SYM_MOD;
 			getch();
 		}
+	}
+	else if(ch == '?'){		// ? :
+		sym = SYM_QUES;
+		getch();
 	}
 	else if(ch == '/'){		// annotation
 		getch();
@@ -519,7 +523,7 @@ void factor(symset fsys)
 								gen(OPR, 0, OPR_MUL);
 							}
 							getsym();
-							expression_logic(uniteset(fsys, createset(SYM_RBRT, SYM_NULL)));
+							expression_select(uniteset(fsys, createset(SYM_RBRT, SYM_NULL)));
 							if (ArrayDim)
 							{
 								gen(OPR, 0, OPR_ADD);
@@ -554,7 +558,7 @@ void factor(symset fsys)
 		{
 			getsym();
 			set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);
-			expression_logic(set);
+			expression_select(set);
 			destroyset(set);
 			if (sym == SYM_RPAREN)
 			{
@@ -568,13 +572,13 @@ void factor(symset fsys)
 		else if(sym == SYM_NEG) // UMINUS,  Expr -> '-' Expr
 		{  
 			 getsym();
-			 expression_logic(fsys);
+			 expression_select(fsys);
 			 gen(OPR, 0, OPR_NEG);
 		}
-		else if(sym == SYM_MINUS) // UMINUS,  Expr -> '-' Expr
+		else if(sym == SYM_MINUS)
 		{  
 			 getsym();
-			 expression_logic(fsys);
+			 expression_select(fsys);
 			 gen(OPR, 0, OPR_MIN);
 		}
 		else	test(fsys, createset(SYM_LPAREN, SYM_NULL), 23);
@@ -598,7 +602,7 @@ void term(symset fsys)
 		{
 			gen(OPR, 0, OPR_MUL);
 		}
-		else if(mulop == SYM_NEG)
+		else if(mulop == SYM_SLASH)
 		{
 			gen(OPR, 0, OPR_DIV);
 		}
@@ -755,7 +759,7 @@ void expression_logic(symset fsys)
 	set = uniteset(fsys, createset(SYM_NOT, SYM_AND, SYM_OR));		//! has higher priority
 	if(sym == SYM_NOT){
 		getsym();
-		expression_bit(set);
+		expression_logic(set);
 		gen(OPR, 0, OPR_NOT);
 	}
 	else{
@@ -798,7 +802,34 @@ void expression_logic(symset fsys)
 		code[c2].a = cx;		//fill the destiny to jump
 	}
 	destroyset(set);
-}
+}//expression_logic
+
+void expression_select(symset fsys)
+{
+	int c1, c2;
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_QUES, SYM_COLON));		//? :
+	
+	expression_logic(set);		//exp1
+	while (sym == SYM_QUES)
+	{
+		gen(LIT, 0, 1);		//put 1 to the stack top
+		gen(OPR, 0, OPR_EQU);
+		c1 = cx;
+		gen(JPC, 0, 0);		//if stack top is 0 then jump, else continue
+		//in this condition, if exp1==1 then it won't jump, else if exp1==0 then it will jump
+		getsym();
+		expression_select(set);		//exp2
+		c2 = cx;
+		gen(JMP, 0, 0);
+		code[c1].a = cx;
+		getsym();
+		expression_select(set);		//exp3
+		code[c2].a = cx;
+	} // while
+	destroyset(set);
+} // expression_select
 
 //////////////////////////////////////////////////////////////////////
 void condition(symset fsys)
@@ -810,13 +841,13 @@ void condition(symset fsys)
 	if (sym == SYM_ODD)
 	{
 		getsym();
-		expression_logic(fsys);
+		expression_select(fsys);
 		gen(OPR, 0, 6);
 	}
 	else
 	{
 		set = uniteset(relset, fsys);
-		expression_logic(set);
+		expression_select(set);
 		destroyset(set);
 		if (! inset(sym, relset))
 		{
@@ -828,7 +859,7 @@ void condition(symset fsys)
 		{
 			relop = sym;
 			getsym();
-			expression_logic(fsys);
+			expression_select(fsys);
 			switch (relop)
 			{
 			case SYM_NOT:
@@ -962,7 +993,7 @@ void statement(symset fsys)
             if ((table[i].kind == ID_VARIABLE)){
             	if (sym == SYM_BECOMES){
 					getsym();
-					expression_logic(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
 	            	mk = (mask*) &table[i];
 	        		gen(STO, level - mk->level, mk->address); 
 				}
@@ -970,7 +1001,7 @@ void statement(symset fsys)
 		        	getsym();
                 	mk = (mask*) &table[i];
 			    	gen(LOD,level-mk->level,mk->address);		//get to stack top
-					expression_logic(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
 			    	gen(OPR,0,OPR_ADD);		//=a+b
 			    	gen(STO,level-mk->level,mk->address);
 		        }
@@ -978,7 +1009,7 @@ void statement(symset fsys)
 		        	getsym();
                 	mk = (mask*) &table[i];
 			    	gen(LOD,level-mk->level,mk->address);
-					expression_logic(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
 			    	gen(OPR,0,OPR_MIN);		//=a-b
 			    	gen(STO,level-mk->level,mk->address);
 		        }
@@ -986,7 +1017,7 @@ void statement(symset fsys)
 		        	getsym();
                 	mk = (mask*) &table[i];
 		   			gen(LOD,level-mk->level,mk->address);
-					expression_logic(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
 			    	gen(OPR,0,OPR_MUL);		//=a*b
 			    	gen(STO,level-mk->level,mk->address);
 		        }
@@ -994,7 +1025,7 @@ void statement(symset fsys)
 		        	getsym();
 		        	mk = (mask*) &table[i];
 					gen(LOD,level-mk->level,mk->address);
-					expression_logic(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
+					expression_select(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
 			    	gen(OPR,0,OPR_DIV);		//=a/b
 			    	gen(STO,level-mk->level,mk->address);
 		        }
@@ -1002,7 +1033,7 @@ void statement(symset fsys)
 					getsym();
 					mk = (mask*) &table[i];
 					gen(LOD,level-mk->level,mk->address);
-					expression_logic(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
+					expression_select(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
 			    	gen(OPR,0,OPR_MOD);		//=a%b
 			    	gen(STO,level-mk->level,mk->address);
 				}
@@ -1010,7 +1041,7 @@ void statement(symset fsys)
 					getsym();
 					mk = (mask*) &table[i];
 					gen(LOD,level-mk->level,mk->address);
-					expression_logic(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
+					expression_select(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
 			    	gen(OPR,0,OPR_SHL);		//=a<<b
 			    	gen(STO,level-mk->level,mk->address);
 				}
@@ -1018,7 +1049,7 @@ void statement(symset fsys)
 					getsym();
 					mk = (mask*) &table[i];
 					gen(LOD,level-mk->level,mk->address);
-					expression_logic(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
+					expression_select(uniteset(fsys,createset(SYM_SEMICOLON,SYM_NULL)));
 			    	gen(OPR,0,OPR_SHR);		//=a>>b
 			    	gen(STO,level-mk->level,mk->address);
 				}
@@ -1043,7 +1074,7 @@ void statement(symset fsys)
             else{
             	if(sym == SYM_BECOMES){
 					getsym();
-					expression_logic(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
+					expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
         			mk = (mask*) &table[i];
             		gen(STA, level - mk->level, mk->address);
 				}
@@ -1504,7 +1535,6 @@ void interpret()
 		} // switch
 	}
 	while (pc);
-
 	printf("End executing PL/0 program.\n");
 } // interpret
 
