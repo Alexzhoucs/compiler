@@ -70,7 +70,9 @@ enum symtype
 	SYM_SHL,//<<
 	SYM_SHR,//>>
 	SYM_SHLEQU,//<<=
-	SYM_SHREQU//>>=
+	SYM_SHREQU,//>>=
+	SYM_QUES,//?
+	SYM_COLON//:
 };
 
 enum idtype
