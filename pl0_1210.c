@@ -1078,19 +1078,33 @@ void statement(symset fsys)
 			    	gen(STO,level-mk->level,mk->address);
 				}
 				else if(sym == SYM_ADDADD){
-			    	getsym();
 			    	mk = (mask*) &table[i];
 			    	gen(LOD,level-mk->level,mk->address);
+					add: 
+			    	getsym();
+			    	while(sym == SYM_ADDADD){
+			    		getsym();
+			    		gen(LIT,0,1);
+			    		gen(OPR,0,OPR_ADD);		//=a+1
+					}
 			    	gen(LIT,0,1);
 			    	gen(OPR,0,OPR_ADD);		//=a+1
+					if(sym == SYM_SUBSUB)	goto sub;
 					gen(STO,level-mk->level,mk->address);
 				}
 				else if(sym == SYM_SUBSUB){
-			    	getsym();
 			    	mk = (mask*) &table[i];
 			    	gen(LOD,level-mk->level,mk->address);
+					sub: 
+			    	getsym();
+			    	while(sym == SYM_SUBSUB){
+			    		getsym();
+			    		gen(LIT,0,1);
+			    		gen(OPR,0,OPR_MIN);		//a-1
+					}
 			    	gen(LIT,0,1);
 			    	gen(OPR,0,OPR_MIN);		//a-1
+					if(sym == SYM_ADDADD)	goto add;
 					gen(STO,level-mk->level,mk->address);
 				}
 				else error(13);   
