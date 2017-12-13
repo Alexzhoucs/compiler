@@ -1617,14 +1617,14 @@ void main ()
 	int i;
 	symset set, set1, set2;
 
-    /*    printf("Please input source file name: "); // get file name to be compiled
+        printf("Please input source file name: "); // get file name to be compiled
         scanf("%s", s);
 	if ((infile = fopen(s, "r")) == NULL)
 	{
 		printf("File %s can't be opened.\n", s);
 		exit(1);
-        }*/
-    infile=fopen("../1.txt","r");
+        }
+    //infile=fopen("../1.txt","r");
 
 	phi = createset(SYM_NULL);
 	relset = createset(SYM_EQU, SYM_NEQ, SYM_LES, SYM_LEQ, SYM_GTR, SYM_GEQ, SYM_NULL);
