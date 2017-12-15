@@ -1,11 +1,11 @@
 #include <stdio.h>
 
-#define NRW        16     // number of reserved words
+#define NRW        15     // number of reserved words
 #define TXMAX      500    // length of identifier table
 #define MAXNUMLEN  14     // maximum number of digits in numbers
 #define NSYM       17    // maximum number of symbols in array ssym and csym
 #define MAXIDLEN   10     // length of identifiers
-#define STEP       1
+#define STEP	1
 #define MAXADDRESS 32767  // maximum address
 #define MAXLEVEL   32     // maximum depth of nesting block
 #define CXMAX      500    // size of code array
@@ -15,6 +15,7 @@
 #define STACKSIZE  1000   // maximum storage
 
 #define DIM 10		//maximum dimension
+#define RECUSION_DEPTH     10  // recusion depth
 
 enum symtype
 {
@@ -75,8 +76,7 @@ enum symtype
 	SYM_COLON,//;
 	SYM_ADDR,//&
 	SYM_RETURN,
-        SYM_FOR,
-SYM_CALL
+	SYM_FOR
 };
 
 enum idtype
@@ -86,7 +86,7 @@ enum idtype
 
 enum opcode
 {
-	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, EXT, STA, LTA, RET
+	LIT, OPR, LOD, STO, CAL, INT, JMP, JPC, EXT, STA, LTA, RET, JNZ, JZ
 };
 
 enum oprcode
@@ -139,7 +139,7 @@ char* err_msg[] =
 /* 26 */    "Array declaration constant expected.",
 /* 27 */    "Array declaration missing ']'.",
 /* 28 */    "Identifier or number expected in '[]'",
-/* 29 */    "",
+/* 29 */    "There must be an array type after '&'.",
 /* 30 */    "",
 /* 31 */    "",
 /* 32 */    "There are too many levels."
@@ -161,6 +161,9 @@ int dimension;		//to record the dimension
 int dim[DIM];		//to record the dimension
 int off;		//to record the offset of an array
 
+int ProcedureDepth = 0;
+int paracount[RECUSION_DEPTH];
+
 char line[80];
 
 instruction code[CXMAX];
@@ -170,21 +173,21 @@ char* word[NRW + 1] =
 	"", /* place holder */
 	"begin", "const", "do", "end","if",
 	"odd", "procedure", "then", "var", "while",
-        "else", "exit", "elif", "return","for","call"
+    "else", "exit", "elif", "return", "for"
 };
 
 int wsym[NRW + 1] =
 {
 	SYM_NULL, SYM_BEGIN, SYM_CONST, SYM_DO, SYM_END,
 	SYM_IF, SYM_ODD, SYM_PROCEDURE, SYM_THEN, SYM_VAR, SYM_WHILE,
-        SYM_ELSE, SYM_EXIT, SYM_ELIF, SYM_RETURN,SYM_FOR,SYM_CALL
+        SYM_ELSE, SYM_EXIT, SYM_ELIF, SYM_RETURN, SYM_FOR
 };
 
 int ssym[NSYM + 1] =
 {
 	SYM_NULL, SYM_PLUS, SYM_NEG, SYM_TIMES, SYM_SLASH,
 	SYM_LPAREN, SYM_RPAREN, SYM_EQU, SYM_COMMA, SYM_PERIOD, SYM_SEMICOLON,
-        SYM_LBRT, SYM_RBRT, SYM_QUES, SYM_COLON, SYM_ADDR
+    SYM_LBRT, SYM_RBRT, SYM_QUES, SYM_COLON, SYM_ADDR
 };
 
 char csym[NSYM + 1] =
@@ -192,10 +195,10 @@ char csym[NSYM + 1] =
         ' ', '+', '-', '*', '/', '(', ')', '=', ',', '.', ';', '[', ']', '?', ':', '&'
 };
 
-#define MAXINS   12
+#define MAXINS   14
 char* mnemonic[MAXINS] =
 {
-	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC", "EXT", "STA", "LTA", "RET"
+	"LIT", "OPR", "LOD", "STO", "CAL", "INT", "JMP", "JPC", "EXT", "STA", "LTA", "RET", "JNZ", "JZ"
 };
 
 typedef struct
