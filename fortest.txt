@@ -1,0 +1,5 @@
+var i, j, k, m;
+begin
+  i := 4;
+  for(j:=0;j<i;j++)	k:=9;
+end.
