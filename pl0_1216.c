@@ -1037,11 +1037,13 @@ void statement(symset fsys)
 	symset set1, set;
 	int isarr = 0;
         mask *mk;
+
 	if (sym == SYM_IDENTIFIER)
 	{ // variable assignment
 		mask* mk;
 		mask* arr;    //get array table
 		mask *mk2;   //get temporary table
+	isid:
 		if (! (i = position(id)))
 		{
 			getsym();
@@ -1059,7 +1061,14 @@ void statement(symset fsys)
 					strcpy(flags[gotoi],id);
 					gotocx[gotoi] = cx;
 				}
-				statement(fsys);
+				getsym();
+				if(sym==SYM_IDENTIFIER)	goto isid;
+				else if(sym==SYM_RETURN)	goto isret;
+				else if(sym==SYM_WHILE)	goto iswhile;
+				else if(sym==SYM_IF)	goto isif;
+				else if(sym==SYM_EXIT)	goto isexit;
+				else if(sym==SYM_FOR)	goto isfor;
+				else	statement(fsys);
 			}
 			else error(11); // Undeclared identifier.
 		}
@@ -1230,7 +1239,7 @@ void statement(symset fsys)
             	mask* mk;
 				mask* ay;
             	mk = (mask*) &table[i];
-				//getsym();
+            	//getsym();
 				if (sym == SYM_LPAREN)		//( 
 				{
 					getsym();
@@ -1254,7 +1263,7 @@ void statement(symset fsys)
 						}
 					}
 				}
-            	gen(CAL, level - mk->level, mk->address);
+				gen(CAL, level - mk->level, mk->address);
 			}
             else{
             	if(sym == SYM_BECOMES){
@@ -1294,6 +1303,7 @@ void statement(symset fsys)
 		}
 	}*/ //12_13 delete "call"
 	else if(sym == SYM_RETURN){		//return procedure
+	isret:
 		getsym();
 		if(sym != SYM_SEMICOLON){
 			expression_select(uniteset(fsys, createset(SYM_SEMICOLON, SYM_NULL)));
@@ -1305,6 +1315,7 @@ void statement(symset fsys)
 	}
 	else if (sym == SYM_IF)
 	{ // if statement
+	isif:
         getsym();
         set1 = createset(SYM_THEN, SYM_NULL);
         set = uniteset(set1, fsys);
@@ -1375,6 +1386,7 @@ void statement(symset fsys)
 	}
 	else if (sym == SYM_WHILE)
 	{ // while statement
+	iswhile:
 		c1 = cx;
 		getsym();
 		set1 = createset(SYM_LB, SYM_NULL);
@@ -1498,6 +1510,7 @@ void statement(symset fsys)
 		statement(fsys);
 	}
 	else if(sym == SYM_EXIT){
+	isexit:
 		gen(EXT, 0, 0);
 		getsym();
 	}
@@ -1522,6 +1535,7 @@ void statement(symset fsys)
 		getsym();
 	}
     else if (sym == SYM_FOR){
+    isfor:
         getsym();
         if(sym != SYM_LPAREN)
             error(30);
@@ -1561,12 +1575,6 @@ void statement(symset fsys)
         gen(JMP, 0, cx1); //??
         code[cx2].a = cx;
     }
-    else if(sym == SYM_CALSTA){		//callstack fuction
-    	gen(CALSTA, 0, 0);
-    	getsym();
-    	if(sym != SYM_SEMICOLON)	error(10);		//';' expected
-    	//getsym();
-	}
         //test(fsys, phi, 19);
 } // statement
 			
@@ -1974,14 +1982,6 @@ void interpret()
 		case JZ:
 			if(stack[top] == 0)	pc = i.a;
 			top--;
-			break;
-		case CALSTA:
-			printf("callstack:\n");
-			tempb = b;
-			while(tempb != 1){
-				printf("b = %d pc =  %d\n",stack[tempb + 1], stack[tempb + 2]);
-				tempb = stack[tempb + 1];
-			}
 			break;
 		} // switch
 	}
