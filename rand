@@ -1,0 +1,6 @@
+var i,j;
+begin
+i := random(10);
+j := random();
+
+end.

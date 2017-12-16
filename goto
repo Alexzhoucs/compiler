@@ -1,0 +1,10 @@
+var i,a;
+label 10;
+begin
+a:=1;
+i:=12;
+goto 10;
+i:=10;
+10:
+a:= i;
+end.
