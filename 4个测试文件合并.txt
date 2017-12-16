@@ -1,0 +1,84 @@
+/////callstack试用/////
+
+var i,j,k;
+procedure a(w)
+begin
+  callstack;
+  if w == 1 then return 1;
+  else
+  return w*a(w-1);
+end;
+begin
+  k := a(5);
+end.
+
+//////////
+
+/////continue break 循环嵌套/////
+
+var i, j, k, m, n, p, q;
+
+begin
+  i := 3;
+  /*while (i != 0) {
+    k := 0;
+    while (k != 3) {
+      j := k + 1;
+      if j >= i then break;
+      else  k++;
+    }
+    i--;
+  }
+  m := 6;
+  n := 0;
+  while (m > 0) {
+    m--;
+    if !(m % 2) then continue;
+    else n += m;
+  }*/
+  p := 8;
+  while (p > 0){
+    if (p > 1) then p-=2;
+    if p == 2 then continue;
+    if (p == 6) then continue;
+    p-=1;
+  }
+end.
+
+//////////
+
+/////数组传参/////
+
+var i, j, k, a[3];
+
+procedure p(m,n)
+begin
+  return m + n;
+end;
+
+begin
+  a[0] := 1;
+  a[1] := 2;
+  k := p(a[1],a[0]);
+  k := p(k,5);
+  a[3] := k;
+end.
+
+//////////
+
+/////goto测试/////
+
+var i, j, k, m;
+
+begin
+  i := 8;
+out:;
+  i-=3;
+  while(i > 0){
+    if(!(i%2)) then goto out;
+    else i--;
+  }
+  j := i;
+end.
+
+//////////
